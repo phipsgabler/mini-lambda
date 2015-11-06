@@ -3,6 +3,8 @@
 module MiniLambda
     ( Expr(..),
       normalize,
+      normalizeWith,
+      prelude,
       lambda,
       (<.>),
       (@@)
@@ -13,7 +15,7 @@ import qualified Data.Map.Strict as M
 
 data Expr = Var { name :: String }
           | App Expr Expr
-          | Lambda { var:: String, expr :: Expr }
+          | Lambda { arg :: String, expr :: Expr }
           deriving (Eq)
 
 instance Show Expr where
@@ -41,22 +43,25 @@ x <.> e = Lambda x e
 
 
 normalize :: Expr -> Expr
-normalize e = reduce M.empty e
-  where reduce :: M.Map String Expr -> Expr -> Expr
-        reduce env x@(Var v) = case  M.lookup v env of
-                                 Nothing -> x
-                                 Just x' -> x'
-        reduce env (Lambda v (App f (Var v'))) | v == v' = f            -- eta minimality
-        reduce env (Lambda v e) = Lambda v (reduce (M.delete v env) e)
-        reduce env (App v@(Var _) e2) = case (reduce env v) of
-                                          l@(Lambda _ _) -> reduce env $ App l e2
-                                          n -> App n $ reduce env e2
-        reduce env (App (Lambda x e1) e2) = let e2' = reduce env e2 
-                                            in reduce (M.insert x e2' env) e1
-        reduce env (App e1@(App _ _) e2) = case reduce env e1 of
-                                             l@(Lambda _ _) -> reduce env $ App l e2
-                                             n -> App n $ reduce env e2
+normalize e = normalizeWith M.empty e
 
+normalizeWith :: M.Map String Expr -> Expr -> Expr
+normalizeWith env x@(Var v) = case  M.lookup v env of
+                         Nothing -> x
+                         Just x' -> x'
+normalizeWith env (Lambda v (App f (Var v'))) | v == v' = f            -- eta minimality
+normalizeWith env (Lambda v e) = Lambda v (normalizeWith (M.delete v env) e)
+normalizeWith env (App v@(Var _) e2) = case (normalizeWith env v) of
+                                  l@(Lambda _ _) -> normalizeWith env $ App l e2
+                                  n -> App n $ normalizeWith env e2
+normalizeWith env (App (Lambda x e1) e2) = let e2' = normalizeWith env e2 
+                                    in normalizeWith (M.insert x e2' env) e1
+normalizeWith env (App e1@(App _ _) e2) = case normalizeWith env e1 of
+                                     l@(Lambda _ _) -> normalizeWith env $ App l e2
+                                     n -> App n $ normalizeWith env e2
+
+
+-- some useful definitions
 
 omega = (lambda "x" <.> "x" @@ "x")
 
@@ -66,3 +71,9 @@ cdr = lambda "t" <.> "t" @@ (lambda "_" <.> lambda "y" <.> "y")
 
 zero = lambda "f" <.> lambda "x" <.> "x"
 succ = lambda "n" <.> lambda "f" <.> lambda "x" <.> "f" @@ ("n" @@ "f" @@ "x")
+
+
+prelude = M.fromList [("omega", omega)
+                    , ("cons", cons)
+                    , ("car", car)
+                    , ("cdf", cdr)]

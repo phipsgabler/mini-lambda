@@ -3,6 +3,7 @@
 --import Test.QuickCheck
 import Test.HUnit
 import MiniLambda
+import MiniLambda.Parser
 
 cons = lambda "x" <.> lambda "y" <.> lambda "f" <.> "f" @@ "x" @@ "y"
 car = lambda "t" <.> "t" @@ (lambda "x" <.> lambda "_" <.> "x")
@@ -29,6 +30,12 @@ etaEquivalence = TestCase $ assertEqual
   (normalize $ lambda "x" <.> "f" @@ "x")
   ("f")
 
+
+testParserBasic = TestCase $ do
+  assertEqual
+
 main = runTestTT $ TestList [ testTuples1
                             , testTuples2
+                            , etaEquivalence
+                            , testParserBasic
                             ]
