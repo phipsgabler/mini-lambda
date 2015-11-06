@@ -76,4 +76,4 @@ succ = lambda "n" <.> lambda "f" <.> lambda "x" <.> "f" @@ ("n" @@ "f" @@ "x")
 prelude = M.fromList [("omega", omega)
                     , ("cons", cons)
                     , ("car", car)
-                    , ("cdf", cdr)]
+                    , ("cdr", cdr)]
