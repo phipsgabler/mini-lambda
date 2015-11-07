@@ -43,27 +43,26 @@ x <.> e = Lambda x e
 
 
 normalize :: Expr -> Expr
-normalize e = normalizeWith M.empty e
+normalize = normalizeWith M.empty
 
 normalizeWith :: M.Map String Expr -> Expr -> Expr
 normalizeWith env x@(Var v) = case  M.lookup v env of
-                         Nothing -> x
-                         Just x' -> x'
+  Nothing -> x
+  Just x' -> x'
 normalizeWith env (Lambda v (App f (Var v'))) | v == v' = f            -- eta minimality
 normalizeWith env (Lambda v e) = Lambda v (normalizeWith (M.delete v env) e)
-normalizeWith env (App v@(Var _) e2) = case (normalizeWith env v) of
-                                  l@(Lambda _ _) -> normalizeWith env $ App l e2
-                                  n -> App n $ normalizeWith env e2
+normalizeWith env (App v@(Var _) e2) = case normalizeWith env v of
+  l@(Lambda _ _) -> normalizeWith env $ App l e2
+  n -> App n $ normalizeWith env e2
 normalizeWith env (App (Lambda x e1) e2) = let e2' = normalizeWith env e2 
-                                    in normalizeWith (M.insert x e2' env) e1
+                                           in normalizeWith (M.insert x e2' env) e1
 normalizeWith env (App e1@(App _ _) e2) = case normalizeWith env e1 of
-                                     l@(Lambda _ _) -> normalizeWith env $ App l e2
-                                     n -> App n $ normalizeWith env e2
+  l@(Lambda _ _) -> normalizeWith env $ App l e2
+  n -> App n $ normalizeWith env e2
 
 
 -- some useful definitions
-
-omega = (lambda "x" <.> "x" @@ "x")
+omega = lambda "x" <.> "x" @@ "x"
 
 cons = lambda "x" <.> lambda "y" <.> lambda "f" <.> "f" @@ "x" @@ "y"
 car = lambda "t" <.> "t" @@ (lambda "x" <.> lambda "_" <.> "x")

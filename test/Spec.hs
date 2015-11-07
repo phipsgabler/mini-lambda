@@ -31,11 +31,11 @@ etaEquivalence = TestCase $ assertEqual
   ("f")
 
 
-testParserBasic = TestCase $ do
-  assertEqual
+-- testParserBasic = TestCase $ do
+--   assertEqual
 
 main = runTestTT $ TestList [ testTuples1
                             , testTuples2
                             , etaEquivalence
-                            , testParserBasic
+                            --, testParserBasic
                             ]

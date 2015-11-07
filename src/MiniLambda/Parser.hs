@@ -2,6 +2,7 @@
 
 module MiniLambda.Parser
     ( parseExpression
+    , expression
     ) where
 
 import Control.Applicative
@@ -15,17 +16,17 @@ import MiniLambda hiding (lambda, (<.>))
 parseExpression = second fst . runParser expression
 
 expression = variable
-   <|> lambda
-   <|> application
+         <|> lambda
+         <|> application
 
 -- ascii alphanum + symbols, except '.', '\', '(', and ')'
 letter = oneOf $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'] 
 
 identifier = many1 letter
 
-variable = Var <$> identifier
+variable = (Var <$> identifier) `debugWith` "Expected variable"
 
-lambda = parenthesized $ do
+lambda = (`debugWith` "Expected lambda") . parenthesized $ do
   char '\\'
   skipWhitespace
   v <- identifier
@@ -35,13 +36,13 @@ lambda = parenthesized $ do
   e <- expression
   return $ Lambda v e
 
-application = (debugWith "application") . parenthesized $ do
+application = (`debugWith` "Expected application") . parenthesized $ do
   e1 <- expression
   skipWhitespace
   e2 <- expression
   return $ App e1 e2
 
 -- helpers
-skipWhitespace = many $ char ' '
-parenthesized p = (char '(' *> skipWhitespace) *> p <* (skipWhitespace <* char ')')
-debugWith msg p = p <|> perror msg
+skipWhitespace = (many $ char ' ') >> return ()
+parenthesized p = char '(' *> skipWhitespace *> p <* skipWhitespace <* char ')'
+debugWith p msg = p <|> perror msg
