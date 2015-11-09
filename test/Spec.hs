@@ -47,3 +47,5 @@ main = hspec $ do
           \expr -> case parseExpression $ show expr of
                      Left _ -> False
                      Right expr' -> expr' == expr
+        it "is robust against scattered whitespace" $ do
+          parseExpression "  ( \\ x .  ( x    x  )   ) " `shouldBe` (Right $ lambda "x" <.> "x" @@ "x")

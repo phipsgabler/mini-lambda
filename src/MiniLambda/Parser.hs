@@ -17,9 +17,10 @@ parseExpression :: String -> Either Error Expr
 parseExpression = second fst . runParser expression
 
 expression :: Parser Expr
-expression = variable
-         <|> lambda
-         <|> application
+expression = skipWhitespace *> expr <* skipWhitespace
+  where expr = variable
+           <|> lambda
+           <|> application
 
 -- ascii alphanum + symbols, except '.', '\', '(', and ')'
 letter = oneOf $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'] 
