@@ -4,9 +4,19 @@ import Test.Hspec
 import Test.QuickCheck
 --import Test.HUnit
 import qualified Data.Map.Strict as M
+import Control.Applicative
 
 import MiniLambda
 import MiniLambda.Parser
+
+validIdentifier :: Gen String
+validIdentifier = (listOf1 . elements $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'])
+
+instance Arbitrary Expr where
+  arbitrary = oneof $ [Var <$> validIdentifier
+                     , App <$> arbitrary <*> arbitrary
+                     , Lambda <$> validIdentifier <*> arbitrary
+                     ]
 
 cons = lambda "x" <.> lambda "y" <.> lambda "f" <.> "f" @@ "x" @@ "y"
 car = lambda "t" <.> "t" @@ (lambda "x" <.> lambda "_" <.> "x")
@@ -31,3 +41,9 @@ main = hspec $ do
         (normalizeWith testPrelude $ (car @@ (cons @@ "x" @@ "y"))) `shouldBe` "x"
       it "keeps the cdr/cons invariant" $ do
         (normalizeWith testPrelude $ (cdr @@ (cons @@ "x" @@ "y"))) `shouldBe` "y"
+    describe "Parser" $ do
+      describe "parseExpression" $ do
+        it "is the inverse of show" $ property $ do
+          \expr -> case parseExpression $ show expr of
+                     Left _ -> False
+                     Right expr' -> expr' == expr

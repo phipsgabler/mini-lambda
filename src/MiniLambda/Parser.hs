@@ -13,8 +13,10 @@ import MiniLambda hiding (lambda, (<.>))
 
 
 -- parse to end and get result out of tuple
+parseExpression :: String -> Either Error Expr
 parseExpression = second fst . runParser expression
 
+expression :: Parser Expr
 expression = variable
          <|> lambda
          <|> application
