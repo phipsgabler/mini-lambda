@@ -45,6 +45,7 @@ x <.> e = Lambda x e
 normalize :: Expr -> Expr
 normalize = normalizeWith M.empty
 
+-- TODO: implement this
 normalizeWith :: M.Map String Expr -> Expr -> Expr
 normalizeWith env e = e
 
