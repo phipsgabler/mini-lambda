@@ -30,7 +30,7 @@ identifier = many1 letter
 variable = (Var <$> identifier) `debugWith` "Expected variable"
 
 lambda = (`debugWith` "Expected lambda") . parenthesized $ do
-  char '\\'
+  char '\\' <|> char 'λ'
   skipWhitespace
   v <- identifier
   skipWhitespace
