@@ -23,7 +23,7 @@ expression = skipWhitespace *> expr <* skipWhitespace
            <|> application
 
 -- ascii alphanum + symbols, except '.', '\', '(', and ')'
-letter = oneOf $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'] 
+letter = oneOf $ ['!'..'\''] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'] 
 
 identifier = many1 letter
 

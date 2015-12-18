@@ -28,7 +28,7 @@ main = hspec $ do
         (evalFull $ cdr @@ t) `shouldBe` "2"
       -- it "performs eta reductions" $ do
       --   (evalFull $ lambda "x" <.> "f" @@ "x") `shouldBe` "f"
-    describe "normalizeWith" $ do
+    describe "evalFullWith" $ do
       let testPrelude = M.fromList [("cons", cons)
                                   , ("car", car)
                                   , ("cdr", cdr)
@@ -58,3 +58,6 @@ main = hspec $ do
                      Right expr' -> expr' == expr
         it "is robust against scattered whitespace" $ do
           parseExpression "  ( \\ x .  ( x    x  )   ) " `shouldBe` (Right $ lambda "x" <.> "x" @@ "x")
+        it "can handle unicode lambdas and primes" $ do
+           parseExpression "(λx.(λx'.(x x')))" `shouldBe` 
+                           (Right $ lambda "x" <.> lambda "x'" <.> "x" @@ "x'")
