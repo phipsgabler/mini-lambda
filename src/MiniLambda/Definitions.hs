@@ -14,6 +14,8 @@ cdr = lambda "t" <.> "t" @@ (lambda "_" <.> lambda "y" <.> "y")
 zero = lambda "f" <.> lambda "x" <.> "x"
 succ = lambda "n" <.> lambda "f" <.> lambda "x" <.> "f" @@ ("n" @@ "f" @@ "x")
 
+twice = lambda "f" <.> lambda "x" <.> "f" @@ ("f" @@ "x")
+
 
 prelude = fromList [("omega", omega)
                   , ("cons", cons)

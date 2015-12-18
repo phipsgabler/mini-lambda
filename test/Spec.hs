@@ -23,20 +23,20 @@ main = hspec $ do
     describe "normalizeFull" $ do
       let t = (cons @@ "1" @@ "2")
       it "can reduce car" $ do
-        (normalizeFull' $ car @@ t) `shouldBe` "1"
+        (evalFull $ car @@ t) `shouldBe` "1"
       it "can reduce cdr" $ do
-        (normalizeFull' $ cdr @@ t) `shouldBe` "2"
+        (evalFull $ cdr @@ t) `shouldBe` "2"
       -- it "performs eta reductions" $ do
-      --   (normalize $ lambda "x" <.> "f" @@ "x") `shouldBe` "f"
-    -- describe "normalizeWith" $ do
-    --   let testPrelude = M.fromList [("cons", cons)
-    --                               , ("car", car)
-    --                               , ("cdr", cdr)
-    --                               ]
-    --   it "keeps the car/cons invariant" $ do
-    --     (normalizeWith testPrelude $ (car @@ (cons @@ "x" @@ "y"))) `shouldBe` "x"
-    --   it "keeps the cdr/cons invariant" $ do
-    --     (normalizeWith testPrelude $ (cdr @@ (cons @@ "x" @@ "y"))) `shouldBe` "y"
+      --   (evalFull $ lambda "x" <.> "f" @@ "x") `shouldBe` "f"
+    describe "normalizeWith" $ do
+      let testPrelude = M.fromList [("cons", cons)
+                                  , ("car", car)
+                                  , ("cdr", cdr)
+                                  ]
+      it "keeps the car/cons invariant" $ do
+        (evalFullWith testPrelude $ (car @@ (cons @@ "x" @@ "y"))) `shouldBe` "x"
+      it "keeps the cdr/cons invariant" $ do
+        (evalFullWith testPrelude $ (cdr @@ (cons @@ "x" @@ "y"))) `shouldBe` "y"
     describe "freeIn" $ do
       it "filters out bound variables" $ do
         ("x" `freeIn` (lambda "x" <.> "x")) `shouldBe` False

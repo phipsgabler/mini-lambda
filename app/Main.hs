@@ -17,4 +17,4 @@ main = do
 handle :: String -> IO ()
 handle "" = return ()
 handle input = putStrLn $ either show eval (parseExpression input)
-  where eval = show . normalizeFull prelude
+  where eval = show . evalFullWith prelude
