@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 import Test.Hspec
 import Test.QuickCheck
@@ -10,22 +10,27 @@ import MiniLambda.Parser
 import MiniLambda.Definitions
 
 validIdentifier :: Gen String
-validIdentifier = (listOf1 . elements $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'])
+validIdentifier = listOf1 . elements $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~']
 
 instance Arbitrary Expr where
-  arbitrary = oneof $ [Var <$> validIdentifier
-                     , App <$> arbitrary <*> arbitrary
-                     , Lambda <$> validIdentifier <*> arbitrary
-                     ]
+  arbitrary = sized sizedExprGenerator
+    where sizedExprGenerator 0 = Var <$> validIdentifier
+          sizedExprGenerator n = oneof $ [ App <$> smallerExpr <*> smallerExpr
+                                         , Lambda <$> validIdentifier <*> smallerExpr
+                                         ]
+                             where smallerExpr = sizedExprGenerator (n `div` 2)
 
 main = hspec $ do
   describe "MiniLambda" $ do
-    describe "normalizeFull" $ do
+    describe "evalFull" $ do
       let t = (cons @@ "1" @@ "2")
       it "can reduce car" $ do
         (evalFull $ car @@ t) `shouldBe` "1"
       it "can reduce cdr" $ do
         (evalFull $ cdr @@ t) `shouldBe` "2"
+      it "avoids names capture" $ do
+        (evalFull $ twice @@ twice) `shouldBe` -- (λx.(λx'.(x (x (x (x x'))))))
+          (lambda "x" <.> lambda "x'" <.> ("x" @@ ("x" @@ ("x" @@ ("x" @@ "x'")))))
       -- it "performs eta reductions" $ do
       --   (evalFull $ lambda "x" <.> "f" @@ "x") `shouldBe` "f"
     describe "evalFullWith" $ do
