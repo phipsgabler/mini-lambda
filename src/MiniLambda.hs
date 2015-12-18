@@ -1,26 +1,75 @@
-{-# LANGUAGE OverloadedStrings, PatternSynonyms #-}
-
 module MiniLambda
     ( Expr(..),
-      normalize,
-      normalizeWith,
+      Name,
+      Env,
+      normalizeFull,
+      normalizeFull',
+      emptyEnv,
+      normalizeN,
+      normalizeStep,
       substitute,
       freeIn,
-      prelude,
+      freeVars,
       lambda,
       (<.>),
       (@@)
     ) where
 
-import Data.String
-import qualified Data.Map.Strict as M
 
-data Expr = Var { name :: String }
+import Prelude hiding (lookup)
+import Data.String
+import Data.Map (Map, empty, lookup, fromList, delete)
+import Data.Set (Set, member, singleton, union, (\\))
+import Control.Monad.State
+
+
+type Name = String
+
+data Expr = Var { name :: Name }
           | App Expr Expr
-          | Lambda { arg :: String, expr :: Expr }
+          | Lambda { arg :: Name, expr :: Expr }
           deriving (Eq)
 
-type Env = M.Map String Expr
+type Env = Map Name Expr
+type NameSet = Set Name
+
+
+data EvalState = EvalState { environment :: Env, freeVars :: NameSet }
+
+getEnv :: State EvalState Env
+getEnv = gets environment
+
+putEnv :: Env -> State EvalState ()
+putEnv newEnv = do
+       fv <- getFV
+       put $ EvalState newEnv fv
+
+modifyEnv :: (Env -> Env) -> State EvalState ()
+modifyEnv f = do
+          env <- getEnv
+          putEnv (f env)
+
+getFV :: State EvalState NameSet
+getFV = gets freeVars
+
+putFV :: NameSet -> State EvalState ()
+putFV newFV = do
+      env <- getEnv
+      put $ EvalState env newFV
+
+modifyFV :: (NameSet -> NameSet) -> State EvalState ()
+modifyFV f = do
+         fv <- getFV
+         putFV (f fv)
+
+genSym :: Name -> State EvalState Name
+genSym n = do
+       fv <- getFV
+       if n `member` fv
+            then genSym (n ++ "\'")
+            else return n          
+
+
 
 instance Show Expr where
   show (Var v) = v
@@ -30,83 +79,98 @@ instance Show Expr where
 instance IsString Expr where
   fromString s = Var s
 
--- infixl 2 :@
--- pattern (:@) :: Expr -> Expr -> Expr
--- pattern e1 :@ e2 = App e1 e2
 
 infixl 2 @@
 (@@) :: Expr -> Expr -> Expr
 (@@) = App
 
-lambda :: String -> String
+lambda :: String -> Name
 lambda = id
 
 infixr 1 <.>
-(<.>) :: String -> Expr -> Expr
+(<.>) :: Name -> Expr -> Expr
 x <.> e = Lambda x e
 
 
-normalize :: Expr -> Expr
-normalize = normalizeWith M.empty
 
-normalizeStep :: Env -> Expr -> Expr
-normalizeStep env v@(Var x) = case  M.lookup x env of
-                                Nothing -> v
-                                Just e -> e
-normalizeStep env (Lambda v e) = Lambda v (normalizeStep (M.delete v env) e)
-normalizeStep env (App v@(Var x) e2) = case  M.lookup x env of
-                                         Nothing -> App v (normalizeStep env e2)
-                                         Just e -> App e e2
-normalizeStep env (App (Lambda x e1) e2) = substitute x e2 e1
-normalizeStep env (App e1@(App _ _) e2) = App (normalizeStep env e1) e2
+normalizeFull :: Env -> Expr -> Expr
+normalizeFull env e = evalState (go e) init
+           where init = EvalState env (freeVarsOf e)
+                 go e = do
+                   e' <- normalizeStep e
+                   if e' == e
+                      then return e
+                      else go e'
 
-normalizeWith :: Env -> Expr -> Expr
-normalizeWith env e = if e == e'
-                      then e
-                      else normalizeWith env e'
-              where e' = normalizeStep env e
+normalizeFull' = normalizeFull emptyEnv
 
+emptyEnv :: Env
+emptyEnv = empty
 
--- normalizeWith :: Env -> Expr -> Expr
--- normalizeWith env x@(Var v) = case  M.lookup v env of
---   Nothing -> x
---   Just x' -> x'
--- normalizeWith env (Lambda v (App f (Var v'))) | v == v' = f            -- eta minimality
--- normalizeWith env (Lambda v e) = Lambda v (normalizeWith (M.delete v env) e)
--- normalizeWith env (App v@(Var _) e2) = case normalizeWith env v of
---   l@(Lambda _ _) -> normalizeWith env $ App l e2
---   n -> App n $ normalizeWith env e2
--- normalizeWith env (App (Lambda x e1) e2) = let e2' = normalizeWith env e2 
---                                            in normalizeWith (M.insert x e2' env) e1
--- normalizeWith env (App e1@(App _ _) e2) = case normalizeWith env e1 of
---   l@(Lambda _ _) -> normalizeWith env $ App l e2
---   n -> App n $ normalizeWith env e2
+normalizeN :: Env -> Int -> Expr -> Expr
+normalizeN env n e = evalState (go e n) init
+           where init = EvalState env (freeVarsOf e)
+                 go e n = do
+                   if n == 0
+                      then return e
+                      else do
+                        e' <- normalizeStep e
+                        go e' (n-1)
+      
 
-substitute :: String -> Expr -> Expr -> Expr
-substitute x s (Var v) | x == v = s
-                         | otherwise = Var v
-substitute x s l@(Lambda y t) | y /= x && not (y `freeIn` s) = Lambda y (substitute x s t)
-                              | otherwise = l
-substitute x s a@(App t1 t2) = App (substitute x s t1) (substitute x s t2)
-
-freeIn :: String -> Expr -> Bool
-x `freeIn` (Var y) = x == y
-x `freeIn` (Lambda y t) = x /= y && x `freeIn` t
-x `freeIn` (App t1 t2) = x `freeIn` t1 || x `freeIn` t2
-
-
--- some useful definitions
-omega = lambda "x" <.> "x" @@ "x"
-
-cons = lambda "x" <.> lambda "y" <.> lambda "f" <.> "f" @@ "x" @@ "y"
-car = lambda "t" <.> "t" @@ (lambda "x" <.> lambda "_" <.> "x")
-cdr = lambda "t" <.> "t" @@ (lambda "_" <.> lambda "y" <.> "y")
-
-zero = lambda "f" <.> lambda "x" <.> "x"
-succ = lambda "n" <.> lambda "f" <.> lambda "x" <.> "f" @@ ("n" @@ "f" @@ "x")
+normalizeStep :: Expr -> State EvalState Expr
+normalizeStep v@(Var x) = do
+              env <- getEnv
+              return $ case  lookup x env of
+                             Nothing -> v
+                             Just e -> e
+normalizeStep (Lambda v e) = do
+              e' <- do
+                 modifyEnv (delete v)
+                 normalizeStep e
+              return $ Lambda v e'
+normalizeStep (App v@(Var x) e2) = do
+              env <- getEnv
+              case lookup x env of
+                   Nothing -> do
+                           e2' <- normalizeStep e2
+                           return $ App v e2'
+                   Just e -> return $ App e e2
+normalizeStep (App (Lambda x e1) e2) = substitute x e2 e1
+normalizeStep (App e1@(App _ _) e2) = do
+              e1' <- normalizeStep e1
+              return $ App e1' e2
 
 
-prelude = M.fromList [("omega", omega)
-                    , ("cons", cons)
-                    , ("car", car)
-                    , ("cdr", cdr)]
+-- See "The Implementation of Functional Programming Languages", p. 22
+substitute :: Name -> Expr -> Expr -> State EvalState Expr
+substitute x s (Var v) 
+  | x == v = return s
+  | otherwise = return $ Var v
+substitute x s a@(App t1 t2) = do
+           t1' <- substitute x s t1
+           t2' <- substitute x s t2
+           return $ App t1' t2'
+substitute x s l@(Lambda y t) 
+  | y == x = return l
+  | y /= x && not (y `freeIn` s) = do
+    l' <- substitute x s t
+    return $ Lambda y l'
+  | otherwise = do
+    z <- genSym y
+    t' <- substitute y (Var z) t
+    substitute x s (Lambda z t')
+
+
+freeIn :: Name -> Expr -> Bool
+x `freeIn` e = x `member` (freeVarsOf e)
+-- x `freeIn` (Var y) = x == y
+-- x `freeIn` (Lambda y t) = x /= y && x `freeIn` t
+-- x `freeIn` (App t1 t2) = x `freeIn` t1 || x `freeIn` t2
+
+freeVarsOf :: Expr -> NameSet
+freeVarsOf (Var x) = singleton x
+freeVarsOf (Lambda x t) = freeVarsOf t \\ singleton x
+freeVarsOf (App t1 t2) = (freeVarsOf t1) `union` (freeVarsOf t2)
+
+-- ((\f. (\x. (f (f x)))) (\f. (\x. (f (f x)))))

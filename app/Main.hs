@@ -2,6 +2,7 @@ module Main where
 
 import MiniLambda
 import MiniLambda.Parser
+import MiniLambda.Definitions
 import System.IO (hFlush, stdout)
 
 main :: IO ()
@@ -14,5 +15,6 @@ main = do
 
 
 handle :: String -> IO ()
+handle "" = return ()
 handle input = putStrLn $ either show eval (parseExpression input)
-  where eval = show . normalizeWith prelude
+  where eval = show . normalizeFull prelude

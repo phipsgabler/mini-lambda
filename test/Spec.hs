@@ -2,12 +2,12 @@
 
 import Test.Hspec
 import Test.QuickCheck
---import Test.HUnit
-import qualified Data.Map.Strict as M
+import qualified Data.Map as M
 import Control.Applicative
 
 import MiniLambda
 import MiniLambda.Parser
+import MiniLambda.Definitions
 
 validIdentifier :: Gen String
 validIdentifier = (listOf1 . elements $ ['!'..'&'] ++ ['*'..'-'] ++ ['/'..'['] ++ [']'..'~'])
@@ -18,29 +18,25 @@ instance Arbitrary Expr where
                      , Lambda <$> validIdentifier <*> arbitrary
                      ]
 
-cons = lambda "x" <.> lambda "y" <.> lambda "f" <.> "f" @@ "x" @@ "y"
-car = lambda "t" <.> "t" @@ (lambda "x" <.> lambda "_" <.> "x")
-cdr = lambda "t" <.> "t" @@ (lambda "_" <.> lambda "y" <.> "y")
-
 main = hspec $ do
   describe "MiniLambda" $ do
-    describe "normalize" $ do
+    describe "normalizeFull" $ do
       let t = (cons @@ "1" @@ "2")
       it "can reduce car" $ do
-        (normalize $ car @@ t) `shouldBe` "1"
+        (normalizeFull' $ car @@ t) `shouldBe` "1"
       it "can reduce cdr" $ do
-        (normalize $ cdr @@ t) `shouldBe` "2"
+        (normalizeFull' $ cdr @@ t) `shouldBe` "2"
       -- it "performs eta reductions" $ do
       --   (normalize $ lambda "x" <.> "f" @@ "x") `shouldBe` "f"
-    describe "normalizeWith" $ do
-      let testPrelude = M.fromList [("cons", cons)
-                                  , ("car", car)
-                                  , ("cdr", cdr)
-                                  ]
-      it "keeps the car/cons invariant" $ do
-        (normalizeWith testPrelude $ (car @@ (cons @@ "x" @@ "y"))) `shouldBe` "x"
-      it "keeps the cdr/cons invariant" $ do
-        (normalizeWith testPrelude $ (cdr @@ (cons @@ "x" @@ "y"))) `shouldBe` "y"
+    -- describe "normalizeWith" $ do
+    --   let testPrelude = M.fromList [("cons", cons)
+    --                               , ("car", car)
+    --                               , ("cdr", cdr)
+    --                               ]
+    --   it "keeps the car/cons invariant" $ do
+    --     (normalizeWith testPrelude $ (car @@ (cons @@ "x" @@ "y"))) `shouldBe` "x"
+    --   it "keeps the cdr/cons invariant" $ do
+    --     (normalizeWith testPrelude $ (cdr @@ (cons @@ "x" @@ "y"))) `shouldBe` "y"
     describe "freeIn" $ do
       it "filters out bound variables" $ do
         ("x" `freeIn` (lambda "x" <.> "x")) `shouldBe` False
@@ -50,10 +46,10 @@ main = hspec $ do
         ("x" `freeIn` ((lambda "x" <.> "x") @@ "x")) `shouldBe` True
       it "conjuncts in applications -- false" $ do
         ("x" `freeIn` ("y" @@ (lambda "x" <.> "y"))) `shouldBe` False
-    describe "substitute" $ do
-      it "ignores bound variables" $ do
-        let id = (lambda "x" <.> "x")
-        (substitute "x" "y" id) `shouldBe` id
+    -- describe "substitute" $ do
+    --   it "ignores bound variables" $ do
+    --     let id = (lambda "x" <.> "x")
+    --     (substitute "x" "y" id) `shouldBe` id
     describe "Parser" $ do
       describe "parseExpression" $ do
         it "is the inverse of show" $ property $ do
