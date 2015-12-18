@@ -165,7 +165,7 @@ freeVarsOf (Lambda x t) = freeVarsOf t \\ singleton x
 freeVarsOf (App t1 t2) = (freeVarsOf t1) `union` (freeVarsOf t2)
 
 genSym :: Name -> NameSet -> Name
-genSym n fv 
+genSym n fv
        | n `member` fv = genSym (n ++ "\'") fv
-       | otherwise =  n   
+       | otherwise =  n
 
