@@ -22,7 +22,7 @@ import Prelude hiding (lookup)
 import Data.String
 import Data.Map (Map, empty, lookup, fromList, delete)
 import Data.Set (Set, member, singleton, union, (\\))
-import Control.Monad.State
+import Control.Monad.Reader (Reader, ask, local, runReader)
 
 
 type Name = String
@@ -35,19 +35,16 @@ data Expr = Var { name :: Name }
 type Env = Map Name Expr
 type NameSet = Set Name
 
+environment :: Reader Env Env
+environment = ask
 
-data EvalState = EvalState { environment :: Env }
+-- putEnv :: Env -> State EvalState ()
+-- putEnv newEnv = put $ EvalState newEnv
 
-getEnv :: State EvalState Env
-getEnv = gets environment
-
-putEnv :: Env -> State EvalState ()
-putEnv newEnv = put $ EvalState newEnv
-
-modifyEnv :: (Env -> Env) -> State EvalState ()
-modifyEnv f = do
-          env <- getEnv
-          putEnv (f env)
+-- modifyEnv :: (Env -> Env) -> State EvalState ()
+-- modifyEnv f = do
+--           env <- getEnv
+--           putEnv (f env)
 
 
 instance Show Expr where
@@ -73,37 +70,33 @@ x <.> e = Lambda x e
 
 
 
-
-emptyEnv :: Env
-emptyEnv = empty
-
 evalFull :: Expr -> Expr
 evalFull expr = evalFullWith empty expr
 
 evalFullWith :: Env -> Expr -> Expr
-evalFullWith env expr = evalState (normalizeFull expr) (EvalState env)
+evalFullWith env expr = runReader(normalizeFull expr) env
 
 evalN :: Int -> Expr -> Expr
 evalN n expr = evalNWith n empty expr
 
 evalNWith :: Int -> Env -> Expr -> Expr
-evalNWith n env expr = evalState (normalizeN n expr) (EvalState env)
+evalNWith n env expr = runReader (normalizeN n expr) env
 
 evalStep :: Expr -> Expr
 evalStep expr = evalStepWith empty expr
 
 evalStepWith :: Env -> Expr -> Expr
-evalStepWith env expr = evalState (normalizeStep expr) (EvalState env)
+evalStepWith env expr = runReader (normalizeStep expr) env
 
 
-normalizeFull :: Expr -> State EvalState Expr
+normalizeFull :: Expr -> Reader Env Expr
 normalizeFull e = do
               e' <- normalizeStep e
               if e' == e
                  then return e
                  else normalizeFull e'
 
-normalizeN :: Int -> Expr -> State EvalState Expr
+normalizeN :: Int -> Expr -> Reader Env Expr
 normalizeN n e = do
            if n == 0
               then return e
@@ -112,19 +105,17 @@ normalizeN n e = do
                 normalizeN (n-1) e'
       
 
-normalizeStep :: Expr -> State EvalState Expr
+normalizeStep :: Expr -> Reader Env Expr
 normalizeStep v@(Var x) = do
-              env <- getEnv
+              env <- environment
               return $ case  lookup x env of
                              Nothing -> v
                              Just e -> e
 normalizeStep (Lambda v e) = do
-              e' <- do
-                 modifyEnv (delete v)
-                 normalizeStep e
+              e' <- local (delete v) $ normalizeStep e
               return $ Lambda v e'
 normalizeStep (App v@(Var x) e2) = do
-              env <- getEnv
+              env <- environment
               case lookup x env of
                    Nothing -> do
                            e2' <- normalizeStep e2
@@ -137,7 +128,7 @@ normalizeStep (App e1@(App _ _) e2) = do
 
 
 -- See "The Implementation of Functional Programming Languages", p. 22
-substitute :: Name -> Expr -> Expr -> State EvalState Expr
+substitute :: Name -> Expr -> Expr -> Reader Env Expr
 substitute x s (Var v) 
   | x == v = return s
   | otherwise = return $ Var v
