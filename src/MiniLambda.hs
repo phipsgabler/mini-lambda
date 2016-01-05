@@ -38,15 +38,6 @@ type NameSet = Set Name
 environment :: Reader Env Env
 environment = ask
 
--- putEnv :: Env -> State EvalState ()
--- putEnv newEnv = put $ EvalState newEnv
-
--- modifyEnv :: (Env -> Env) -> State EvalState ()
--- modifyEnv f = do
---           env <- getEnv
---           putEnv (f env)
-
-
 instance Show Expr where
   show (Var v) = v
   show (App e1 e2) = "(" ++ show e1 ++ " " ++ show e2 ++ ")"
@@ -108,9 +99,9 @@ normalizeN n e = do
 normalizeStep :: Expr -> Reader Env Expr
 normalizeStep v@(Var x) = do
               env <- environment
-              return $ case  lookup x env of
-                             Nothing -> v
-                             Just e -> e
+              return $ case lookup x env of
+                            Nothing -> v
+                            Just e -> e
 normalizeStep (Lambda v e) = do
               e' <- local (delete v) $ normalizeStep e
               return $ Lambda v e'
