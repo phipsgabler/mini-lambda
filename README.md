@@ -1,3 +1,5 @@
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
 # Mini-Lambda #
 
 The initial purpose of this project was just to try setting up a real-world Haskell project with stack, cleanly written and tested.
